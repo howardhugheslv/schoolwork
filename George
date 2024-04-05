@@ -1,0 +1,96 @@
+const WEBSOCKET_URL = getWebsockerUrl(false);
+const tokens = ["ARB", "APT"];
+const maxlevminus = 12;
+
+let tradeticker = 0;
+let ticker = 0;
+let mids = {};
+let longCloids = [] as any;
+let shortCloids = [] as any;
+let exchange: Exchange;
+let coinInfo: IcoinInfo;
+let currentSize: number;
+let TOKEN = tokens[0];
+
+interface IcoinInfo {
+  [key: string]: IcoinInfoDetails;
+}
+
+interface IcoinInfoDetails extends UniverseItem {
+  decimalsPrice: number;
+}
+
+const getMid = (token: string) => {
+  return mids[token];
+};
+
+const setCoinInfo = async () => {
+  const infos = await metaAndAssetCtxs();
+  const details = infos[0].universe.reduce((acc, curr) => {
+    if (tokens.includes(curr.name)) {
+      const indexOfTokenInUniverse = infos[0].universe.findIndex(
+        (x) => x.name === curr.name
+      );
+
+      const otherData = infos[1][indexOfTokenInUniverse];
+      const getDecimalsOfMarkPrice = otherData.markPx.split(".")[1].length || 0;
+
+      acc[curr.name] = { ...curr, decimalsPrice: getDecimalsOfMarkPrice };
+    }
+    return acc;
+  }, {} as IcoinInfo);
+
+  coinInfo = details;
+  return details;
+};
+
+async function metaAndAssetCtxs(): Promise<[Universe, MarketData]> {
+  const response = await axios.post<[Universe, MarketData]>(
+    MAINNET_API_URL + "/info",
+    {
+      type: "metaAndAssetCtxs",
+    }
+  );
+  return response.data;
+}
+
+async function userState(user: string): Promise<UserState> {
+  const response = await axios.post<UserState>(MAINNET_API_URL + "/info", {
+    type: "clearinghouseState",
+    user,
+  });
+  return response.data;
+}
+
+const getLastCloid = (type: "short" | "long") => {
+  const oids = type === "short" ? shortCloids : longCloids;
+  return oids[oids.length - 1];
+};
+
+const ws1 = new WebSocket(WEBSOCKET_URL);
+ws1.on("open", function open() {
+  const subscriptionMessage = {
+    method: "subscribe",
+    subscription: {
+      type: "allMids",
+    },
+  };
+  ws1.send(JSON.stringify(subscriptionMessage));
+
+  const oderUpdats = {
+    method: "subscribe",
+    subscription: {
+      type: "orderUpdates",
+      user: wallet.address,
+    },
+  };
+
+  ws1.send(JSON.stringify(oderUpdats));
+
+  const ethBook = {
+    method: "subscribe",
+    subscription: {
+      type: "l2Book",
+      coin: TOKEN,
+    },
+  };thelfwkjelwkejflwkelfwkelfkwef
